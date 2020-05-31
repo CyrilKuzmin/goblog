@@ -5230,10 +5230,4 @@ td.visible-print, th.visible-print {
     display: none!important;
 }
 }
-.footer {
-    position: fixed; /* Фиксированное положение */
-    left: 0; bottom: 0; /* Левый нижний угол */
-    color: #fff; /* Цвет текста */
-    width: 100%; /* Ширина слоя */
-   }
 /*# sourceMappingURL=bootstrap.min.css.map */

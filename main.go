@@ -14,6 +14,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		"templates/footer.html",
 		"templates/leftside.html",
 		"templates/rightside.html",
+		"templates/home.html",
 	)
 	if err != nil {
 		fmt.Println("Template error: ", err)

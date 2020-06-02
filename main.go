@@ -25,6 +25,21 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	t.ExecuteTemplate(w, "home", nil)
 }
 
+func errorHandler(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles(
+		"templates/error.html",
+		"templates/header.html",
+		"templates/navbar.html",
+		"templates/footer.html",
+		"templates/leftside.html",
+		"templates/rightside.html",
+	)
+	if err != nil {
+		fmt.Println("Template error: ", err)
+	}
+	t.ExecuteTemplate(w, "error", nil)
+}
+
 func newPostHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles(
 		"templates/post.html",
@@ -81,6 +96,10 @@ func savePosthandler(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	title := r.FormValue("title")
 	content := r.FormValue("content")
+	if title == "" {
+		http.Redirect(w, r, "/error", 302)
+		return
+	}
 	if id != "" {
 		models.EditPost(posts[id], title, content)
 	} else {
@@ -120,6 +139,7 @@ func main() {
 	posts = make(map[string]*models.Post, 0)
 
 	http.HandleFunc("/", indexHandler)
+	http.HandleFunc("/error", errorHandler)
 	http.HandleFunc("/post", newPostHandler)
 	http.HandleFunc("/edit", editPostHandler)
 	http.HandleFunc("/delete", deletePostHandler)

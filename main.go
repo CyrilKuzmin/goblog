@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
+	"github.com/go-martini/martini"
 	"github.com/xxlaefxx/goblog/models"
 )
 
@@ -134,18 +135,21 @@ func aboutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	fmt.Println("Listening on port 3000")
-
 	posts = make(map[string]*models.Post, 0)
 
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/error", errorHandler)
-	http.HandleFunc("/post", newPostHandler)
-	http.HandleFunc("/edit", editPostHandler)
-	http.HandleFunc("/delete", deletePostHandler)
-	http.HandleFunc("/savepost", savePosthandler)
-	http.HandleFunc("/blog", blogHandler)
-	http.HandleFunc("/about", aboutHandler)
-	http.Handle("/statics/", http.StripPrefix("/statics/", http.FileServer(http.Dir("./statics/"))))
-	http.ListenAndServe("0.0.0.0:3000", nil)
+	m := martini.Classic()
+
+	m.Get("/", indexHandler)
+	m.Get("/error", errorHandler)
+	m.Get("/post", newPostHandler)
+	m.Get("/edit", editPostHandler)
+	m.Get("/delete", deletePostHandler)
+	m.Get("/blog", blogHandler)
+	m.Get("/about", aboutHandler)
+
+	m.Post("/savepost", savePosthandler)
+
+	m.Use(martini.Static("statics", martini.StaticOptions{Prefix: "statics"}))
+
+	m.Run()
 }

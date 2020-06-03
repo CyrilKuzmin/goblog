@@ -6,137 +6,74 @@ import (
 	"net/http"
 
 	"github.com/go-martini/martini"
+	"github.com/martini-contrib/render"
 	"github.com/xxlaefxx/goblog/models"
 )
 
 var posts map[string]*models.Post
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(
-		"templates/home.html",
-		"templates/header.html",
-		"templates/navbar.html",
-		"templates/footer.html",
-		"templates/leftside.html",
-		"templates/rightside.html",
-	)
-	if err != nil {
-		fmt.Println("Template error: ", err)
-	}
-	t.ExecuteTemplate(w, "home", nil)
+func indexHandler(rnd render.Render) {
+	rnd.HTML(200, "home", nil)
 }
 
-func errorHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(
-		"templates/error.html",
-		"templates/header.html",
-		"templates/navbar.html",
-		"templates/footer.html",
-		"templates/leftside.html",
-		"templates/rightside.html",
-	)
-	if err != nil {
-		fmt.Println("Template error: ", err)
-	}
-	t.ExecuteTemplate(w, "error", nil)
+func errorHandler(rnd render.Render) {
+	rnd.HTML(400, "error", nil)
 }
 
-func newPostHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(
-		"templates/post.html",
-		"templates/header.html",
-		"templates/navbar.html",
-		"templates/footer.html",
-		"templates/leftside.html",
-		"templates/rightside.html",
-	)
-	if err != nil {
-		fmt.Println("Template error: ", err)
+func blogHandler(rnd render.Render) {
+	rnd.HTML(200, "blog", posts)
+	for key, value := range posts {
+		fmt.Printf("%v : %v\n", key, value)
 	}
-	t.ExecuteTemplate(w, "post", nil)
 }
 
-func editPostHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(
-		"templates/post.html",
-		"templates/header.html",
-		"templates/navbar.html",
-		"templates/footer.html",
-		"templates/leftside.html",
-		"templates/rightside.html",
-	)
-	if err != nil {
-		fmt.Println("Template error: ", err)
-	}
+func newPostHandler(rnd render.Render) {
+	rnd.HTML(200, "post", nil)
+}
+
+func aboutHandler(rnd render.Render) {
+	rnd.HTML(200, "about", posts)
+}
+
+func editPostHandler(rnd render.Render, r *http.Request) {
 	id := r.FormValue("id")
 	post, ok := posts[id]
 	if !ok {
-		http.NotFound(w, r)
+		rnd.Redirect("/error", 302)
 	}
-
-	t.ExecuteTemplate(w, "post", post)
+	rnd.HTML(200, "post", post)
 }
 
-func blogHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(
-		"templates/blog.html",
-		"templates/header.html",
-		"templates/navbar.html",
-		"templates/footer.html",
-		"templates/leftside.html",
-		"templates/rightside.html",
-	)
-	if err != nil {
-		fmt.Println("Template error: ", err)
-	}
-	fmt.Println(posts)
-	t.ExecuteTemplate(w, "blog", posts)
-}
-
-func savePosthandler(w http.ResponseWriter, r *http.Request) {
+func savePosthandler(rnd render.Render, r *http.Request) {
 	id := r.FormValue("id")
 	title := r.FormValue("title")
-	content := r.FormValue("content")
+	content := r.FormValue("editor")
+	verifyPolicy := MakeNewPolicy()
 	if title == "" {
-		http.Redirect(w, r, "/error", 302)
+		rnd.Redirect("/error", 302)
 		return
 	}
 	if id != "" {
-		models.EditPost(posts[id], title, content)
+		models.EditPost(posts[id], title, content, verifyPolicy)
 	} else {
-		post := models.NewPost(generateUUID(), title, content)
+		post := models.NewPost(generateUUID(), title, content, verifyPolicy)
 		posts[post.ID] = post
 	}
-	http.Redirect(w, r, "/blog", 302)
+	rnd.Redirect("/blog", 302)
 }
 
-func deletePostHandler(w http.ResponseWriter, r *http.Request) {
+func deletePostHandler(rnd render.Render, r *http.Request) {
 	id := r.FormValue("id")
 	if id == "" {
-		http.NotFound(w, r)
+		rnd.Redirect("/error", 302)
 	}
 	delete(posts, id)
-	http.Redirect(w, r, "/blog", 302)
-}
-
-func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles(
-		"templates/about.html",
-		"templates/header.html",
-		"templates/navbar.html",
-		"templates/footer.html",
-		"templates/leftside.html",
-		"templates/rightside.html",
-	)
-	if err != nil {
-		fmt.Println("Template error: ", err)
-	}
-	t.ExecuteTemplate(w, "about", nil)
+	rnd.Redirect("/blog", 302)
 }
 
 func main() {
 	posts = make(map[string]*models.Post, 0)
-
+	unescapeFuncMap := template.FuncMap{"unescape": unescape}
 	m := martini.Classic()
 
 	m.Get("/", indexHandler)
@@ -150,6 +87,16 @@ func main() {
 	m.Post("/savepost", savePosthandler)
 
 	m.Use(martini.Static("statics", martini.StaticOptions{Prefix: "statics"}))
+	m.Use(render.Renderer(render.Options{
+		Directory:       "templates",                         // Specify what path to load the templates from.
+		Layout:          "layout",                            // Specify a layout template. Layouts can call {{ yield }} to render the current template.
+		Extensions:      []string{".html"},                   // Specify extensions to load for templates.
+		Funcs:           []template.FuncMap{unescapeFuncMap}, // Specify helper function maps for templates to access.
+		Charset:         "UTF-8",                             // Sets encoding for json and html content-types. Default is "UTF-8".
+		IndentJSON:      true,                                // Output human readable JSON
+		IndentXML:       true,                                // Output human readable XML
+		HTMLContentType: "text/html",                         // Output XHTML content type instead of default "text/html"
+	}))
 
 	m.Run()
 }
